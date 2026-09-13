@@ -62,7 +62,7 @@ A forma recomendada é instalar o **Docker Desktop**, que é uma aplicação gr�
 
 ## 🚀 Como Executar Localmente (com Docker)
 
-Para facilitar o desenvolvimento, o projeto está configurado para rodar com Docker Compose. Ele irá subir a aplicação e um banco de dados PostgreSQL com um único comando.
+Para facilitar o desenvolvimento, o projeto está configurado para rodar com Docker Compose. Ele irá subir a aplicação e um banco de dados MySQL com um único comando.
 
 1.  **Clone o repositório:**
     ```bash
@@ -186,7 +186,7 @@ Sua missão é pegar esta aplicação monolítica e implantá-la na AWS. O ambie
 
 Este guia assume que você já criou uma instância EC2 e um banco de dados RDS, e que consegue se conectar à sua EC2 via SSH.
 
-> **Importante:** Lembre-se de configurar o **Security Group** da sua instância EC2 para permitir tráfego de entrada na porta `5000` (para a aplicação) e na porta `22` (para o SSH). O Security Group do RDS deve permitir tráfego na porta `5432` vindo do Security Group da sua EC2.
+> **Importante:** Lembre-se de configurar o **Security Group** da sua instância EC2 para permitir tráfego de entrada na porta `5000` (para a aplicação) e na porta `22` (para o SSH). O Security Group do RDS deve permitir tráfego na porta `3306` vindo do Security Group da sua EC2.
 
 Escolha a opção correspondente ao sistema operacional da sua instância EC2.
 
@@ -272,6 +272,45 @@ Após instalar as dependências, siga estes passos para configurar e rodar a apl
     Exemplo: `http://54.207.111.222:5000/health`
 
 > **Nota:** O comando `gunicorn` acima executa a aplicação no *foreground*. Se você fechar sua sessão SSH, a aplicação irá parar. Em um ambiente de produção real, usaríamos um gerenciador de processos como `systemd` para rodar a aplicação como um serviço, mas para este desafio, rodar no foreground é suficiente.
+
+### Alternativa: Executando em Produção com Docker
+
+Se preferir rodar a aplicação em um contêiner na EC2 (em vez do Gunicorn direto no host), use o `docker-compose.prod.yaml`. Diferente do `docker-compose.yaml` de desenvolvimento, ele não sobe um banco de dados local: a aplicação se conecta a um MySQL externo (o seu RDS), e o código roda a partir da imagem construída (sem *bind mount* do diretório local).
+
+A aplicação suporta duas formas de obter as credenciais do banco:
+
+- **AWS Secrets Manager (recomendado):** defina `DB_SECRET_NAME` (e `AWS_REGION`) — a aplicação busca `host`, `port`, `dbname`, `username` e `password` diretamente do secret via `boto3`, usando a IAM Role da instância EC2. Nenhuma senha fica em texto plano no `.env`.
+- **Variáveis de ambiente tradicionais:** se `DB_SECRET_NAME` não estiver definida, a aplicação usa `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` normalmente (mesmo comportamento de antes).
+
+#### Configurando o AWS Secrets Manager
+
+1.  **Crie o secret no Secrets Manager** (tipo "Credentials for RDS database" ou um secret genérico) com as chaves `host`, `port`, `dbname`, `username` e `password` apontando para o seu RDS. Anote o nome/ARN do secret (ex.: `togglemaster-prd-db-credentials`).
+
+2.  **Crie uma IAM Role para a EC2** com uma política permitindo `secretsmanager:GetSecretValue` restrita ao ARN do secret criado, e associe essa Role à instância EC2 (via *Instance Profile*).
+
+3.  **Ajuste o hop limit do IMDS**, necessário para que um contêiner Docker (que adiciona um salto de rede) consiga acessar as credenciais da IAM Role via metadata service:
+    ```bash
+    aws ec2 modify-instance-metadata-options \
+      --instance-id <id-da-instancia> \
+      --http-put-response-hop-limit 2 \
+      --http-endpoint enabled
+    ```
+
+4.  **Crie o arquivo `.env`** a partir do `.env.example`, preenchendo `DB_SECRET_NAME` e `AWS_REGION` (deixe os campos da Opção 2 comentados/vazios):
+    ```bash
+    cp .env.example .env
+    ```
+    > **⚠️ AVISO DE SEGURANÇA:** O `.env` já está no `.gitignore`. Nunca versione esse arquivo com credenciais reais — com Secrets Manager, ele nem precisa conter senhas.
+
+5.  **Suba a aplicação:**
+    ```bash
+    docker compose -f docker-compose.prod.yaml up -d --build
+    ```
+
+6.  **Verifique o acesso:**
+    ```bash
+    curl http://localhost:5000/health
+    ```
 
 ---
 
