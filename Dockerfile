@@ -15,9 +15,9 @@ RUN chmod +x entrypoint.sh
 
 COPY app.py .
 
-RUN apt-get update && apt-get install -y postgresql-client
+RUN apt-get update && apt-get install -y default-mysql-client
 
 EXPOSE 5000
 
-ENTRYPOINT ["sh", "./entrypoint.sh"]
+ENTRYPOINT ["sh", "entrypoint.sh"]
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]

@@ -17,9 +17,9 @@ fi
 echo "Aguardando o banco de dados em ${DB_HOST}:${DB_PORT}..."
 
 # Loop para aguardar o banco de dados ficar disponível
-# Para PostgreSQL, usamos o `pg_isready` (instale postgresql-client na imagem)
+# Para MySQL, usamos o `mysqladmin ping` (instale default-mysql-client na imagem)
 # Usamos `until` em vez de `while ! ...` para maior portabilidade entre /bin/sh implementations
-until pg_isready -h "$DB_HOST" -p "$DB_PORT" -q -U "${DB_USER:-}" >/dev/null 2>&1; do
+until mysqladmin ping -h "$DB_HOST" -P "$DB_PORT" -u "${DB_USER:-root}" --password="${DB_PASSWORD:-}" --skip-ssl --silent >/dev/null 2>&1; do
   echo "Banco de dados indisponível - aguardando..."
   sleep 1
 done

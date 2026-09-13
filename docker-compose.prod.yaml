@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    image: toggle-master-monolith:latest
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - DB_PORT=${DB_PORT:-3306}
