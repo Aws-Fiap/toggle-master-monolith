@@ -38,6 +38,7 @@ jobs:
             --parameters commands='[
               "set -e",
               "cd ${{ vars.APP_DIR }}",
+              "docker compose -f docker-compose.prod.yaml down --remove-orphans || true",
               "git fetch origin main",
               "git reset --hard origin/main",
               "docker compose -f docker-compose.prod.yaml up -d --build"

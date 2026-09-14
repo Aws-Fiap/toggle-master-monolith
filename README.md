@@ -345,10 +345,12 @@ via **OIDC**, uma IAM Role temporária e envia o comando de deploy
     - `EC2_INSTANCE_ID` = ID da instância (ex.: `i-0123456789abcdef0`).
     - `APP_DIR` = caminho absoluto do código na instância (ex.: `/home/ec2-user/toggle-master-monolith`).
 
-Com isso configurado, todo push na `main` roda `git reset --hard
-origin/main` seguido de `docker compose -f docker-compose.prod.yaml up -d
---build` na instância e faz um health check em `GET /health` para
-confirmar que o deploy funcionou.
+Com isso configurado, todo push na `main` roda, na instância: `docker
+compose -f docker-compose.prod.yaml down --remove-orphans` (derruba e
+remove o container em execução, se houver), `git reset --hard
+origin/main` e `docker compose -f docker-compose.prod.yaml up -d
+--build` (recria o container com o código novo). No final, o workflow faz
+um health check em `GET /health` para confirmar que o deploy funcionou.
 
 ---
 
