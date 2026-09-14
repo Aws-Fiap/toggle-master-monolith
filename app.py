@@ -31,7 +31,7 @@ def _get_db_credentials():
         return {
             "host": secret.get("host", os.getenv("DB_HOST", "togglemaster-prd.cfsy8k6qapj0.us-east-2.rds.amazonaws.com")),
             "port": secret.get("port", os.getenv("DB_PORT", "3306")),
-            "database": secret.get("dbname", os.getenv("DB_NAME", "togglemaster-prd")),
+            "database": secret.get("dbname", os.getenv("DB_NAME", "togglemaster_prd")),
             "user": secret.get("username", os.getenv("DB_USER")),
             "password": secret["password"],
         }
