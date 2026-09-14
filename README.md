@@ -314,6 +314,44 @@ A aplicação suporta duas formas de obter as credenciais do banco:
 
 ---
 
+## 🤖 Deploy Automático via GitHub Actions (OIDC + SSM)
+
+Além do deploy manual acima, o repositório tem um workflow
+(`.github/workflows/deploy.yml`) que atualiza a aplicação na EC2
+automaticamente a cada push na `main` (ou sob demanda via
+`workflow_dispatch`). Ele não usa SSH nem access keys: o workflow assume,
+via **OIDC**, uma IAM Role temporária e envia o comando de deploy
+(`git pull` + `docker compose up --build`) para a instância através do
+**AWS Systems Manager (SSM) Run Command**.
+
+### Pré-requisitos
+
+1.  A IAM Role de deploy precisa existir — ela é criada pelo Terraform do
+    repositório [`fiap-aws-toggle-master-deploy-role`](https://github.com/Aws-Fiap/fiap-aws-toggle-master-deploy-role).
+    Siga o README daquele repositório para aplicá-lo (`ec2_instance_id` da
+    sua instância) e obter o ARN da role.
+2.  A instância EC2 precisa ter o **SSM Agent** rodando e um **IAM
+    Instance Profile** com a policy gerenciada `AmazonSSMManagedInstanceCore`
+    anexado (permite a instância receber comandos do SSM — isso é
+    independente da IAM Role de Secrets Manager já usada pela aplicação).
+3.  O código já deve estar clonado num diretório da instância (com
+    `git remote` apontando para este repositório) e o `.env` já
+    configurado, como descrito nas seções acima.
+4.  Crie o GitHub Environment `production` em **Settings → Environments**
+    (é o que a trust policy da IAM Role exige) e, em **Settings → Secrets
+    and variables → Actions → Variables**, configure:
+    - `AWS_DEPLOY_ROLE_ARN` = ARN gerado pelo `fiap-aws-toggle-master-deploy-role`.
+    - `AWS_REGION` = `us-east-1` (opcional — é o default do workflow).
+    - `EC2_INSTANCE_ID` = ID da instância (ex.: `i-0123456789abcdef0`).
+    - `APP_DIR` = caminho absoluto do código na instância (ex.: `/home/ec2-user/toggle-master-monolith`).
+
+Com isso configurado, todo push na `main` roda `git reset --hard
+origin/main` seguido de `docker compose -f docker-compose.prod.yaml up -d
+--build` na instância e faz um health check em `GET /health` para
+confirmar que o deploy funcionou.
+
+---
+
 ## 딜 Entregáveis da Fase 1
 
 Você deve entregar os seguintes itens:
